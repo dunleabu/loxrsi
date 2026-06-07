@@ -2,27 +2,27 @@ use std::env;
 use std::fs;
 
 #[derive(Debug)]
-struct Args {pub path: String}
+struct Args {
+    pub path: String,
+}
 
 type Res<T> = Result<T, String>;
 
 fn parse_args() -> Res<Args> {
     let mut args: Vec<_> = env::args().collect();
     if args.len() == 2 {
-        Ok(Args{path: args.pop().unwrap()})
+        Ok(Args {
+            path: args.pop().unwrap(),
+        })
     } else {
         Err("usage: lox <path>".to_string())
     }
-
-  
-
-
 }
 
 fn read_file(args: Args) -> Res<String> {
     match fs::read_to_string(args.path) {
         Ok(text) => Ok(text),
-        Err(e) => Err(format!("{}", e))
+        Err(e) => Err(format!("{}", e)),
     }
 }
 
