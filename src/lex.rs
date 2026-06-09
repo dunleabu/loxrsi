@@ -80,6 +80,10 @@ impl<'a> TextInput<'_> {
 
 enum State {
   Start,
+  OnBang,
+  //OnEqual,
+  //OnGreat,
+  //OnLess,
 }
 
 #[derive(Debug)]
@@ -135,12 +139,16 @@ pub enum Token {
 
 }
 
-fn to_start(text: &mut TextInput, token: Token) -> (State, Option<Token>) {
+fn with_step(text: &mut TextInput, state: State, token: Token) -> (State, Option<Token>) {
     text.step();
-    (State::Start, Some(token))
+    (state, Some(token))
 }
 
-fn start_step(text: &mut TextInput) -> (State, Option<Token>) {
+fn to_start(text: &mut TextInput, token: Token) -> (State, Option<Token>) {
+    with_step(text, State::Start, token)
+}
+
+fn from_start(text: &mut TextInput) -> (State, Option<Token>) {
     match text.current {
        Some('(') => to_start(text, Token::LeftParen),
        Some(')') => to_start(text, Token::RightParen),
@@ -153,6 +161,8 @@ fn start_step(text: &mut TextInput) -> (State, Option<Token>) {
        Some(';') => to_start(text, Token::Semicolon),
        Some('/') => to_start(text, Token::Slash),
        Some('*') => to_start(text, Token::Star),
+       Some('!') => with_step(text, State::OnBang, Token::Star),
+
         _ => {
             text.step();
             (State::Start, None)
@@ -161,10 +171,18 @@ fn start_step(text: &mut TextInput) -> (State, Option<Token>) {
 
 }
 
+fn from_bang(text: &mut TextInput) -> (State, Option<Token>) {
+    match text.current {
+        Some('=') => to_start(text, Token::BangEqual),
+        _ => (State::Start, Some(Token::Bang))
+    }
+}
+
 fn step(state: State, text: &mut TextInput) -> (State, Option<Token>) {
 
     match state {
-        State::Start => start_step(text),
+        State::Start => from_start(text),
+        State::OnBang => from_bang(text),
     }
 
 }
