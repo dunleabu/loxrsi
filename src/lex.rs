@@ -1,4 +1,3 @@
-
 use std::str::CharIndices;
 
 #[derive(Debug)]
@@ -50,10 +49,8 @@ impl<'a> TextInput<'_> {
                 if current == '\n' {
                     self.char_pos = 0;
                     self.line_num += 1;
-
                 } else {
                     self.char_pos += 1;
-
                 }
             }
             None => self.current = None,
@@ -79,11 +76,11 @@ impl<'a> TextInput<'_> {
 }
 
 enum State {
-  Start,
-  OnBang,
-  //OnEqual,
-  //OnGreat,
-  //OnLess,
+    Start,
+    OnBang,
+    //OnEqual,
+    //OnGreat,
+    //OnLess,
 }
 
 #[derive(Debug)]
@@ -104,39 +101,38 @@ pub enum Keyword {
     True,
     Var,
     While,
-
 }
 
 #[derive(Debug)]
 pub enum Token {
-  // single-character tokens
-  LeftParen,
-  RightParen,
-  LeftBrace,
-  RightBrace,
-  Comma,
-  Dot,
-  Minus,
-  Plus,
-  Semicolon,
-  Slash,
-  Star,
-  // one-or-two character tokens
-  Bang,
-  BangEqual,
-  Equal, EqualEqual,
-  Greater,
-  GreaterEqual,
-  Less,
-  LessEqual,
-  // literals
-  Identifier(String),
-  String(String),
-  Number(f64),
-  // keywords
-  Keyword(Keyword),
-  EOF
-
+    // single-character tokens
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Minus,
+    Plus,
+    Semicolon,
+    Slash,
+    Star,
+    // one-or-two character tokens
+    Bang,
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    // literals
+    Identifier(String),
+    String(String),
+    Number(f64),
+    // keywords
+    Keyword(Keyword),
+    EOF,
 }
 
 fn with_step(text: &mut TextInput, state: State, token: Token) -> (State, Option<Token>) {
@@ -150,41 +146,38 @@ fn to_start(text: &mut TextInput, token: Token) -> (State, Option<Token>) {
 
 fn from_start(text: &mut TextInput) -> (State, Option<Token>) {
     match text.current {
-       Some('(') => to_start(text, Token::LeftParen),
-       Some(')') => to_start(text, Token::RightParen),
-       Some('{') => to_start(text, Token::LeftBrace),
-       Some('}') => to_start(text, Token::RightBrace),
-       Some(',') => to_start(text, Token::Comma),
-       Some('.') => to_start(text, Token::Dot),
-       Some('-') => to_start(text, Token::Minus),
-       Some('+') => to_start(text, Token::Plus),
-       Some(';') => to_start(text, Token::Semicolon),
-       Some('/') => to_start(text, Token::Slash),
-       Some('*') => to_start(text, Token::Star),
-       Some('!') => with_step(text, State::OnBang, Token::Star),
+        Some('(') => to_start(text, Token::LeftParen),
+        Some(')') => to_start(text, Token::RightParen),
+        Some('{') => to_start(text, Token::LeftBrace),
+        Some('}') => to_start(text, Token::RightBrace),
+        Some(',') => to_start(text, Token::Comma),
+        Some('.') => to_start(text, Token::Dot),
+        Some('-') => to_start(text, Token::Minus),
+        Some('+') => to_start(text, Token::Plus),
+        Some(';') => to_start(text, Token::Semicolon),
+        Some('/') => to_start(text, Token::Slash),
+        Some('*') => to_start(text, Token::Star),
+        Some('!') => with_step(text, State::OnBang, Token::Star),
 
         _ => {
             text.step();
             (State::Start, None)
-        },
+        }
     }
-
 }
 
 fn from_bang(text: &mut TextInput) -> (State, Option<Token>) {
     match text.current {
         Some('=') => to_start(text, Token::BangEqual),
-        _ => (State::Start, Some(Token::Bang))
+        _ => (State::Start, Some(Token::Bang)),
     }
 }
 
 fn step(state: State, text: &mut TextInput) -> (State, Option<Token>) {
-
     match state {
         State::Start => from_start(text),
         State::OnBang => from_bang(text),
     }
-
 }
 
 pub fn lex(s: String) -> () {

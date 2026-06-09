@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::str::CharIndices;
 
-
 type Res<T> = Result<T, String>;
 
 mod lex;
@@ -11,7 +10,6 @@ mod lex;
 struct Args {
     pub path: String,
 }
-
 
 fn parse_args() -> Res<Args> {
     let mut args: Vec<_> = env::args().collect();
