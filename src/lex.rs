@@ -12,7 +12,7 @@ struct TextInput<'a> {
 }
 
 impl<'a> TextInput<'_> {
-    pub fn new(data: &'a str) -> TextInput<'a> {
+    fn new(data: &'a str) -> TextInput<'a> {
         let mut iter = data.char_indices();
         match iter.next() {
             Some((right, current)) => TextInput {
@@ -36,12 +36,12 @@ impl<'a> TextInput<'_> {
         }
     }
 
-    pub fn mark(&mut self) -> usize {
+    fn mark(&mut self) -> usize {
         self.left = self.right;
         self.left
     }
 
-    pub fn step(&mut self) -> Option<char> {
+    fn step(&mut self) -> Option<char> {
         match self.iter.next() {
             Some((right, current)) => {
                 self.current = Some(current);
@@ -58,11 +58,11 @@ impl<'a> TextInput<'_> {
         self.current
     }
 
-    pub fn slice(&self) -> &str {
+    fn slice(&self) -> &str {
         &self.data[self.left..self.right] //.to_string()
     }
 
-    pub fn pr(&self) -> () {
+    fn pr(&self) -> () {
         println!(
             "  {} {:?} {} ({},{}): {}",
             self.left,
@@ -73,14 +73,23 @@ impl<'a> TextInput<'_> {
             self.slice()
         );
     }
+
+    fn add_context(&self, token: Token) -> TokenContext {
+        TokenContext {
+            token,
+            line: self.line_num,
+            pos: self.char_pos,
+        }
+    }
 }
 
 enum State {
     Start,
     OnBang,
-    //OnEqual,
-    //OnGreat,
-    //OnLess,
+    OnEqual,
+    OnGreater,
+    OnLess,
+    InComment,
 }
 
 #[derive(Debug)]
@@ -132,57 +141,197 @@ pub enum Token {
     Number(f64),
     // keywords
     Keyword(Keyword),
-    EOF,
+    //EOF,
+    Error(String),
 }
 
-fn with_step(text: &mut TextInput, state: State, token: Token) -> (State, Option<Token>) {
+#[derive(Debug)]
+pub struct TokenContext {
+    token: Token,
+    line: usize,
+    pos: usize,
+}
+
+type StepOut = (State, Option<TokenContext>);
+
+fn with_step(text: &mut TextInput, state: State, token: Option<TokenContext>) -> StepOut {
     text.step();
-    (state, Some(token))
+    (state, token)
 }
 
-fn to_start(text: &mut TextInput, token: Token) -> (State, Option<Token>) {
-    with_step(text, State::Start, token)
+fn to_start(text: &mut TextInput, token: Token) -> StepOut {
+    with_step(text, State::Start, Some(text.add_context(token)))
 }
 
-fn from_start(text: &mut TextInput) -> (State, Option<Token>) {
-    match text.current {
-        Some('(') => to_start(text, Token::LeftParen),
-        Some(')') => to_start(text, Token::RightParen),
-        Some('{') => to_start(text, Token::LeftBrace),
-        Some('}') => to_start(text, Token::RightBrace),
-        Some(',') => to_start(text, Token::Comma),
-        Some('.') => to_start(text, Token::Dot),
-        Some('-') => to_start(text, Token::Minus),
-        Some('+') => to_start(text, Token::Plus),
-        Some(';') => to_start(text, Token::Semicolon),
-        Some('/') => to_start(text, Token::Slash),
-        Some('*') => to_start(text, Token::Star),
-        Some('!') => with_step(text, State::OnBang, Token::Star),
+fn maybe_comment(text: &mut TextInput) -> StepOut {
+    text.step();
+    if let Some('/') = text.current {
+        (State::InComment, None)
+    } else {
+        (State::Start, Some(text.add_context(Token::Slash)))
+    }
+}
 
-        _ => {
-            text.step();
-            (State::Start, None)
+fn step_digits(text: &mut TextInput) -> usize {
+    let mut counter = 0;
+    loop {
+        match text.current {
+            Some(c) if c.is_ascii_digit() => {
+                counter += 1;
+                text.step();
+            }
+            _ => break,
         }
     }
+    counter
 }
 
-fn from_bang(text: &mut TextInput) -> (State, Option<Token>) {
-    match text.current {
-        Some('=') => to_start(text, Token::BangEqual),
-        _ => (State::Start, Some(Token::Bang)),
+fn to_number(text: &mut TextInput) -> StepOut {
+    text.mark();
+    text.step();
+    step_digits(text);
+    if let Some(c) = text.current
+        && c == '.'
+    {
+        text.step();
+        if step_digits(text) == 0 {
+            return (
+                State::Start,
+                Some(text.add_context(Token::Error(format!(
+                    "unterminated number: {}",
+                    text.slice()
+                )))),
+            );
+        }
+    }
+    let number = text
+        .slice()
+        .parse::<f64>()
+        .expect("failed number conversion");
+    (State::Start, Some(text.add_context(Token::Number(number))))
+}
+
+fn to_string(text: &mut TextInput) -> StepOut {
+    text.step();
+    text.mark();
+    loop {
+        match text.current {
+            None => {
+                return (
+                    State::Start,
+                    Some(text.add_context(Token::Error("unterminated string".to_string()))),
+                );
+            }
+            Some('"') => break,
+            _ => {
+                text.step();
+            }
+        }
+    }
+    let string = text.slice().to_owned();
+    let token = text.add_context(Token::String(string));
+    text.step();
+    (State::Start, Some(token))
+}
+
+fn whitespace(text: &mut TextInput) -> StepOut {
+    with_step(text, State::Start, None)
+}
+
+fn okay_for_id(x: Option<char>) -> bool {
+    if let Some(c) = x {
+        c.is_alphanumeric() || c == '_'
+    } else {
+        false
     }
 }
 
-fn step(state: State, text: &mut TextInput) -> (State, Option<Token>) {
+fn to_identifier(text: &mut TextInput) -> StepOut {
+    text.mark();
+    text.step();
+    loop {
+        if okay_for_id(text.current) {
+            text.step();
+        } else {
+            break;
+        }
+    }
+    let string = text.slice().to_owned();
+    let token = text.add_context(Token::Identifier(string));
+    (State::Start, Some(token))
+}
+
+fn from_start(text: &mut TextInput) -> StepOut {
+    match text.current {
+        Some(c) => {
+            match c {
+                // whitespace
+                ' ' => whitespace(text),
+                '\n' => whitespace(text),
+                // single-char
+                '(' => to_start(text, Token::LeftParen),
+                ')' => to_start(text, Token::RightParen),
+                '{' => to_start(text, Token::LeftBrace),
+                '}' => to_start(text, Token::RightBrace),
+                ',' => to_start(text, Token::Comma),
+                '.' => to_start(text, Token::Dot),
+                '-' => to_start(text, Token::Minus),
+                '+' => to_start(text, Token::Plus),
+                ';' => to_start(text, Token::Semicolon),
+                //'/' => to_start(text, Token::Slash),
+                '*' => to_start(text, Token::Star),
+                // possible double-char
+                '!' => with_step(text, State::OnBang, None),
+                '=' => with_step(text, State::OnEqual, None),
+                '>' => with_step(text, State::OnGreater, None),
+                '<' => with_step(text, State::OnLess, None),
+                // multi-character
+                '/' => maybe_comment(text),
+                '"' => to_string(text),
+                '_' => to_identifier(text),
+                _ if c.is_ascii_digit() => to_number(text),
+                _ if c.is_alphanumeric() => to_identifier(text),
+
+                _ => {
+                    text.step();
+                    (State::Start, None)
+                }
+            }
+        }
+        None => (State::Start, None),
+    }
+}
+
+fn if_equal(text: &mut TextInput, equal_token: Token, other_token: Token) -> StepOut {
+    match text.current {
+        Some('=') => to_start(text, equal_token),
+        _ => (State::Start, Some(text.add_context(other_token))),
+    }
+}
+
+fn from_comment(text: &mut TextInput) -> StepOut {
+    text.step();
+    if let Some('\n') = text.current {
+        (State::Start, None)
+    } else {
+        (State::InComment, None)
+    }
+}
+
+fn step(state: State, text: &mut TextInput) -> StepOut {
     match state {
         State::Start => from_start(text),
-        State::OnBang => from_bang(text),
+        State::OnBang => if_equal(text, Token::BangEqual, Token::Bang),
+        State::OnEqual => if_equal(text, Token::EqualEqual, Token::Equal),
+        State::OnGreater => if_equal(text, Token::GreaterEqual, Token::Greater),
+        State::OnLess => if_equal(text, Token::LessEqual, Token::Less),
+        State::InComment => from_comment(text),
     }
 }
 
 pub fn lex(s: String) -> () {
     let mut txt = TextInput::new(&s);
-    txt.pr();
+    //txt.pr();
     let mut state = State::Start;
     while let Some(c) = txt.current {
         if c == 'o' {
@@ -192,11 +341,14 @@ pub fn lex(s: String) -> () {
             txt.mark();
         }
         let (s, t) = step(state, &mut txt);
-        println!(" {:?}", t);
+        match t {
+            Some(token) => println!("{} -> {:?}", c, token),
+            None => println!("{} -> ...", c),
+        }
         state = s;
 
         //txt.step();
-        txt.pr();
+        //txt.pr();
     }
     ()
 }
