@@ -6,6 +6,8 @@ type Res<T> = Result<T, String>;
 
 mod lex;
 
+use lex::{Token, TokenContext};
+
 #[derive(Debug)]
 struct Args {
     pub path: String,
@@ -29,10 +31,37 @@ fn read_file(args: Args) -> Res<String> {
     }
 }
 
+fn print_errors(errors: &Vec<TokenContext>) -> String {
+    let mut count = 0;
+    println!("");
+    for error in errors.iter() {
+        match error {
+            TokenContext {
+                token: Token::Error(msg),
+                line,
+                pos,
+            } => {
+                count += 1;
+                println!("line {}, pos {} : {}\n", line, pos, msg);
+            }
+            _ => {}
+        }
+    }
+    format!("{} syntax errors", count)
+}
+
+fn print_tokens(tokens: &Vec<TokenContext>) {
+    for tc in tokens.iter() {
+        println!("{}, {} : {:?}", tc.line, tc.pos, tc.token)
+    }
+
+}
+
 fn main() -> Res<()> {
     let args = parse_args()?;
     let text = read_file(args)?;
-    let tokens = lex::lex(text);
-    println!(" -- {:?}", tokens);
-    Ok(())
+    match lex::lex(text) {
+        Err(errors) => Err(print_errors(&errors)),
+        Ok(tokens) => Ok(print_tokens(&tokens)),
+    }
 }

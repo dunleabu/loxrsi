@@ -147,9 +147,9 @@ pub enum Token {
 
 #[derive(Debug)]
 pub struct TokenContext {
-    token: Token,
-    line: usize,
-    pos: usize,
+    pub token: Token,
+    pub line: usize,
+    pub pos: usize,
 }
 
 type StepOut = (State, Option<TokenContext>);
@@ -256,9 +256,26 @@ fn to_identifier(text: &mut TextInput) -> StepOut {
             break;
         }
     }
-    let string = text.slice().to_owned();
-    let token = text.add_context(Token::Identifier(string));
-    (State::Start, Some(token))
+    let token = match text.slice() {
+        "and" => Token::Keyword(Keyword::And),
+        "class" => Token::Keyword(Keyword::Class),
+        "else" => Token::Keyword(Keyword::Else),
+        "false" => Token::Keyword(Keyword::False),
+        "fun" => Token::Keyword(Keyword::Fun),
+        "for" => Token::Keyword(Keyword::For),
+        "if" => Token::Keyword(Keyword::If),
+        "nil" => Token::Keyword(Keyword::Nil),
+        "or" => Token::Keyword(Keyword::Or),
+        "print" => Token::Keyword(Keyword::Print),
+        "return" => Token::Keyword(Keyword::Return),
+        "super" => Token::Keyword(Keyword::Super),
+        "this" => Token::Keyword(Keyword::This),
+        "true" => Token::Keyword(Keyword::True),
+        "var" => Token::Keyword(Keyword::Var),
+        "while" => Token::Keyword(Keyword::While),
+        x => Token::Identifier(x.to_owned()),
+    };
+    (State::Start, Some(text.add_context(token)))
 }
 
 fn from_start(text: &mut TextInput) -> StepOut {
@@ -267,6 +284,7 @@ fn from_start(text: &mut TextInput) -> StepOut {
             match c {
                 // whitespace
                 ' ' => whitespace(text),
+                '\t' => whitespace(text),
                 '\n' => whitespace(text),
                 // single-char
                 '(' => to_start(text, Token::LeftParen),
@@ -294,7 +312,10 @@ fn from_start(text: &mut TextInput) -> StepOut {
 
                 _ => {
                     text.step();
-                    (State::Start, None)
+                    (
+                        State::Start,
+                        Some(text.add_context(Token::Error(format!("bad character: '{}'", c)))),
+                    )
                 }
             }
         }
@@ -329,10 +350,13 @@ fn step(state: State, text: &mut TextInput) -> StepOut {
     }
 }
 
-pub fn lex(s: String) -> () {
+pub fn lex(s: String) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
     let mut txt = TextInput::new(&s);
     //txt.pr();
     let mut state = State::Start;
+    let mut has_error = false;
+    let mut tokens: Vec<TokenContext> = Vec::new();
+    let mut errors: Vec<TokenContext> = Vec::new();
     while let Some(c) = txt.current {
         if c == 'o' {
             txt.mark();
@@ -342,13 +366,30 @@ pub fn lex(s: String) -> () {
         }
         let (s, t) = step(state, &mut txt);
         match t {
-            Some(token) => println!("{} -> {:?}", c, token),
-            None => println!("{} -> ...", c),
+            Some(
+                tc @ TokenContext {
+                    token: Token::Error(_),
+                    line,
+                    pos,
+                },
+            ) => {
+                //println!("ERROR on line {} pos {}: {:?}", line, pos, &msg);
+                has_error = true;
+                errors.push(tc);
+            }
+
+            Some(token) => {
+                //println!("{} -> {:?}", c, token);
+                tokens.push(token);
+            }
+            None => {
+                //println!("{} -> ...", c);
+            }
         }
         state = s;
 
         //txt.step();
         //txt.pr();
     }
-    ()
+    if has_error { Err(errors) } else { Ok(tokens) }
 }
