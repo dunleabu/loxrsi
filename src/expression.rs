@@ -1,32 +1,21 @@
 use std::fmt;
 
 pub enum Expression {
-    Literal(Literal),
-    Unary(Unary),
-    Binary(Binary),
-    Grouping(Grouping),
-}
-
-impl fmt::Display for Expression {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Literal(x) => write!(f, "{}", x),
-            Self::Unary(x) => write!(f, "{}", x),
-            Self::Binary(x) => write!(f, "{}", x),
-            Self::Grouping(x) => write!(f, "{}", x),
-        }
-    }
-}
-
-enum Literal {
     Number(f64),
     Str(String),
     True,
     False,
     Nil,
+    Unary(UnaryOp, Box<Expression>),
+    Binary {
+        left: Box<Expression>,
+        op: Operator,
+        right: Box<Expression>,
+    },
+    Grouping(Box<Expression>),
 }
 
-impl fmt::Display for Literal {
+impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Number(n) => write!(f, "{}", n),
@@ -34,43 +23,24 @@ impl fmt::Display for Literal {
             Self::True => write!(f, "true"),
             Self::False => write!(f, "false"),
             Self::Nil => write!(f, "nil"),
+            Self::Unary(op, x) => write!(f, "({} {})", op, x),
+            Self::Binary { left, op, right } => write!(f, "({} {} {})", op, left, right),
+            Self::Grouping(e) => write!(f, "(group {})", e),
         }
     }
 }
 
-struct Grouping {
-    e: Box<Expression>,
+enum UnaryOp {
+    Minus,
+    Bang,
 }
 
-impl fmt::Display for Grouping {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(group {})", self.e)
-    }
-}
-
-enum Unary {
-    Minus(Box<Expression>),
-    Bang(Box<Expression>),
-}
-
-impl fmt::Display for Unary {
+impl fmt::Display for UnaryOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Minus(x) => write!(f, "(- {})", x),
-            Self::Bang(x) => write!(f, "(! {})", x),
+            Self::Minus => write!(f, "-"),
+            Self::Bang => write!(f, "!"),
         }
-    }
-}
-
-struct Binary {
-    left: Box<Expression>,
-    op: Operator,
-    right: Box<Expression>,
-}
-
-impl fmt::Display for Binary {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({} {} {})", self.op, self.left, self.right)
     }
 }
 
@@ -104,20 +74,22 @@ impl fmt::Display for Operator {
     }
 }
 
+// functions for demonstrating pretty-printing of expression
+
 fn binary(left: Expression, op: Operator, right: Expression) -> Expression {
-    Expression::Binary(Binary {
+    Expression::Binary {
         left: Box::new(left),
         op,
         right: Box::new(right),
-    })
+    }
 }
 
 fn num(n: f64) -> Expression {
-    Expression::Literal(Literal::Number(n))
+    Expression::Number(n)
 }
 
 fn group(expr: Expression) -> Expression {
-    Expression::Grouping(Grouping { e: Box::new(expr) })
+    Expression::Grouping(Box::new(expr))
 }
 
 fn add(left: Expression, right: Expression) -> Expression {
@@ -129,7 +101,7 @@ fn mul(left: Expression, right: Expression) -> Expression {
 }
 
 fn negate(e: Expression) -> Expression {
-    Expression::Unary(Unary::Minus(Box::new(e)))
+    Expression::Unary(UnaryOp::Minus, Box::new(e))
 }
 
 pub fn demo() -> Expression {
@@ -138,6 +110,6 @@ pub fn demo() -> Expression {
     let n3 = num(23.2);
     let n4 = num(10.1);
     let x = add(n1, n2);
-    let y = mul(group(x), mul(n3, n4));
+    let y = mul(group(x), mul(n3, negate(n4)));
     y
 }
