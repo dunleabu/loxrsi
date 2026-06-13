@@ -5,7 +5,7 @@ use std::str::CharIndices;
 
 type Res<T> = Result<T, String>;
 
-use loxrsi::lex::{Token, TokenContext, lex};
+use loxrsi::lexer::{Token, TokenContext, lex};
 
 #[derive(Debug)]
 struct FileArgs {
