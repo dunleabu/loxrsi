@@ -2,7 +2,7 @@ use std::fmt;
 
 pub enum Expression {
     Number(f64),
-    Str(String),
+    String(String),
     True,
     False,
     Nil,
@@ -19,7 +19,7 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Number(n) => write!(f, "{}", n),
-            Self::Str(s) => write!(f, "{}", s),
+            Self::String(s) => write!(f, "{}", s),
             Self::True => write!(f, "true"),
             Self::False => write!(f, "false"),
             Self::Nil => write!(f, "nil"),
@@ -71,6 +71,16 @@ impl fmt::Display for Operator {
             Self::Mul => write!(f, "*"),
             Self::Div => write!(f, "/"),
         }
+    }
+}
+
+impl Expression {
+    pub fn number(n: f64) -> Expression {
+        Expression::Number(n)
+    }
+
+    pub fn string(s: String) -> Expression {
+        Expression::String(s)
     }
 }
 
