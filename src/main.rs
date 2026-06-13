@@ -1,13 +1,11 @@
 use std::env;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::str::CharIndices;
 
 type Res<T> = Result<T, String>;
 
-mod lex;
-
-use lex::{Token, TokenContext};
+use loxrsi::lex::{Token, TokenContext, lex};
 
 #[derive(Debug)]
 struct FileArgs {
@@ -56,7 +54,7 @@ fn print_errors(errors: &Vec<TokenContext>) -> String {
             _ => {}
         }
     }
-    format!("{} syntax errors", count)
+    format!("{count} syntax errors")
 }
 
 fn print_tokens(tokens: &Vec<TokenContext>) {
@@ -69,18 +67,33 @@ fn print_tokens(tokens: &Vec<TokenContext>) {
 
 fn run_file(args: FileArgs) -> Res<()> {
     let text = read_file(args)?;
-    match lex::lex(text) {
+    match lex(&text) {
         Err(errors) => Err(print_errors(&errors)),
         Ok(tokens) => Ok(print_tokens(&tokens)),
     }
 }
 
 fn run_repl(args: ReplArgs) -> Res<()> {
-    panic!("no repl");
     let mut input = String::new();
     loop {
-        //std::io
+        print!("> ");
+        io::stdout().flush().unwrap();
+        input.clear();
+        let _ = match io::stdin().read_line(&mut input) {
+            Ok(0) => {
+                break;
+            } // ctrl-D
+            Ok(_) => {
+                match lex(&input) {
+                    Err(errors) => Err(print_errors(&errors)),
+                    Ok(tokens) => Ok(print_tokens(&tokens)),
+                };
+            }
+            Err(error) => println!("error: {error}"),
+        };
     }
+    println!("bye!");
+    Ok(())
 }
 
 fn main() -> Res<()> {
