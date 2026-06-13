@@ -77,8 +77,10 @@ impl<'a> TextInput<'_> {
     fn add_context(&self, token: Token) -> TokenContext {
         TokenContext {
             token,
-            line: self.line_num,
-            pos: self.char_pos,
+            context: Context {
+                line: self.line_num,
+                pos: self.char_pos,
+            },
         }
     }
 }
@@ -146,10 +148,14 @@ pub enum Token {
 }
 
 #[derive(Debug)]
-pub struct TokenContext {
-    pub token: Token,
+pub struct Context {
     pub line: usize,
     pub pos: usize,
+}
+#[derive(Debug)]
+pub struct TokenContext {
+    pub token: Token,
+    pub context: Context,
 }
 
 type StepOut = (State, Option<TokenContext>);
@@ -369,8 +375,7 @@ pub fn lex(s: &String) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
             Some(
                 tc @ TokenContext {
                     token: Token::Error(_),
-                    line,
-                    pos,
+                    ..
                 },
             ) => {
                 //println!("ERROR on line {} pos {}: {:?}", line, pos, &msg);

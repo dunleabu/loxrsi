@@ -5,7 +5,7 @@ use std::str::CharIndices;
 
 type Res<T> = Result<T, String>;
 
-use loxrsi::lexer::{Token, TokenContext, lex};
+use loxrsi::lexer::{Context, Token, TokenContext, lex};
 
 #[derive(Debug)]
 struct FileArgs {
@@ -45,8 +45,7 @@ fn print_errors(errors: &Vec<TokenContext>) -> String {
         match error {
             TokenContext {
                 token: Token::Error(msg),
-                line,
-                pos,
+                context: Context { line, pos },
             } => {
                 count += 1;
                 println!("line {}, pos {} : {}\n", line, pos, msg);
@@ -59,7 +58,7 @@ fn print_errors(errors: &Vec<TokenContext>) -> String {
 
 fn print_tokens(tokens: &Vec<TokenContext>) {
     for tc in tokens.iter() {
-        println!("{}, {} : {:?}", tc.line, tc.pos, tc.token)
+        println!("{}, {} : {:?}", tc.context.line, tc.context.pos, tc.token)
     }
 
     println!("");
