@@ -90,8 +90,6 @@ impl<'a> TextInput<'_> {
 
 enum State {
     Start,
-    OnLookahead { single: Token, double: Token },
-    InComment,
     AddDot, // special state that should always add a dot next turn
 }
 
@@ -99,8 +97,7 @@ impl State {
     fn flush(self) -> Option<Token> {
         match self {
             Self::AddDot => Some(Token::Dot),
-            Self::OnLookahead { single, .. } => Some(single),
-            Self::Start | Self::InComment => None,
+            Self::Start => None,
         }
     }
 }
@@ -176,8 +173,15 @@ fn with_step(text: &mut TextInput, state: State, token: Option<TokenContext>) ->
     (state, token)
 }
 
-fn on_lookahead(text: &mut TextInput, single: Token, double: Token) -> StepOut {
-    with_step(text, State::OnLookahead { single, double }, None)
+fn lookahead(text: &mut TextInput, single: Token, double: Token) -> StepOut {
+    text.step();
+    let token = if let Some('=') = text.current {
+        text.step();
+        double
+    } else {
+        single
+    };
+    (State::Start, Some(text.add_context(token)))
 }
 
 fn to_start(text: &mut TextInput, token: Token) -> StepOut {
@@ -187,7 +191,13 @@ fn to_start(text: &mut TextInput, token: Token) -> StepOut {
 fn maybe_comment(text: &mut TextInput) -> StepOut {
     text.step();
     if let Some('/') = text.current {
-        (State::InComment, None)
+        loop {
+            match text.step() {
+                None | Some('\n') => break,
+                _ => {}
+            }
+        }
+        (State::Start, None)
     } else {
         (State::Start, Some(text.add_context(Token::Slash)))
     }
@@ -222,13 +232,7 @@ fn to_number(text: &mut TextInput) -> StepOut {
                 .unwrap()
                 .parse::<f64>()
                 .expect("failed number conversion!");
-            return (
-                State::AddDot,
-                Some(text.add_context(Token::Number(number))), //Some(text.add_context(Token::Error(format!(
-                                                               //    "unterminated number: {}",
-                                                               //    text.slice()
-                                                               //)))),
-            );
+            return (State::AddDot, Some(text.add_context(Token::Number(number))));
         }
     }
     let number = text
@@ -323,13 +327,12 @@ fn from_start(text: &mut TextInput) -> StepOut {
                 '-' => to_start(text, Token::Minus),
                 '+' => to_start(text, Token::Plus),
                 ';' => to_start(text, Token::Semicolon),
-                //'/' => to_start(text, Token::Slash),
                 '*' => to_start(text, Token::Star),
                 // possible double-char
-                '!' => on_lookahead(text, Token::Bang, Token::BangEqual),
-                '=' => on_lookahead(text, Token::Equal, Token::EqualEqual),
-                '>' => on_lookahead(text, Token::Greater, Token::GreaterEqual),
-                '<' => on_lookahead(text, Token::Less, Token::LessEqual),
+                '!' => lookahead(text, Token::Bang, Token::BangEqual),
+                '=' => lookahead(text, Token::Equal, Token::EqualEqual),
+                '>' => lookahead(text, Token::Greater, Token::GreaterEqual),
+                '<' => lookahead(text, Token::Less, Token::LessEqual),
                 // multi-character
                 '/' => maybe_comment(text),
                 '"' => to_string(text),
@@ -350,34 +353,15 @@ fn from_start(text: &mut TextInput) -> StepOut {
     }
 }
 
-fn if_equal(text: &mut TextInput, equal_token: Token, other_token: Token) -> StepOut {
-    match text.current {
-        Some('=') => to_start(text, equal_token),
-        _ => (State::Start, Some(text.add_context(other_token))),
-    }
-}
-
-fn from_comment(text: &mut TextInput) -> StepOut {
-    text.step();
-    if let Some('\n') = text.current {
-        (State::Start, None)
-    } else {
-        (State::InComment, None)
-    }
-}
-
 fn step(state: State, text: &mut TextInput) -> StepOut {
     match state {
         State::Start => from_start(text),
-        State::OnLookahead { single, double } => if_equal(text, double, single),
-        State::InComment => from_comment(text),
         State::AddDot => (State::Start, Some(text.add_context(Token::Dot))),
     }
 }
 
 pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
     let mut txt = TextInput::new(s);
-    //txt.pr();
     let mut state = State::Start;
     let mut has_error = false;
     let mut tokens: Vec<TokenContext> = Vec::new();
@@ -394,18 +378,13 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
                     ..
                 },
             ) => {
-                //println!("ERROR on line {} pos {}: {:?}", line, pos, &msg);
                 has_error = true;
                 errors.push(tc);
             }
-
             Some(token) => {
-                //println!("{} -> {:?}", c, token);
                 tokens.push(token);
             }
-            None => {
-                //println!("{} -> ...", c);
-            }
+            None => {}
         }
         state = s;
     }
