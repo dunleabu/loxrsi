@@ -87,10 +87,10 @@ impl Expression {
         Expression::Grouping(Box::new(expr))
     }
 
-    pub fn unary_neg(expr: Expression) -> Expression {
+    pub fn negate(expr: Expression) -> Expression {
         Expression::Unary(UnaryOp::Minus, Box::new(expr))
     }
-    pub fn unary_not(expr: Expression) -> Expression {
+    pub fn not(expr: Expression) -> Expression {
         Expression::Unary(UnaryOp::Bang, Box::new(expr))
     }
 }
@@ -105,14 +105,6 @@ fn binary(left: Expression, op: Operator, right: Expression) -> Expression {
     }
 }
 
-fn num(n: f64) -> Expression {
-    Expression::Number(n)
-}
-
-fn group(expr: Expression) -> Expression {
-    Expression::Grouping(Box::new(expr))
-}
-
 fn add(left: Expression, right: Expression) -> Expression {
     binary(left, Operator::Add, right)
 }
@@ -121,16 +113,12 @@ fn mul(left: Expression, right: Expression) -> Expression {
     binary(left, Operator::Mul, right)
 }
 
-fn negate(e: Expression) -> Expression {
-    Expression::Unary(UnaryOp::Minus, Box::new(e))
-}
-
 pub fn demo() -> Expression {
-    let n1 = num(56.0);
-    let n2 = num(23.2);
-    let n3 = num(23.2);
-    let n4 = num(10.1);
+    let n1 = Expression::number(56.0);
+    let n2 = Expression::number(23.2);
+    let n3 = Expression::number(23.2);
+    let n4 = Expression::number(10.1);
     let x = add(n1, n2);
-    let y = mul(group(x), mul(n3, negate(n4)));
+    let y = mul(Expression::grouping(x), mul(n3, Expression::negate(n4)));
     y
 }

@@ -79,12 +79,12 @@ fn unary(stream: &mut TokenStream) -> Option<Expression> {
             Token::Minus => {
                 stream.drop();
                 let expr = unary(stream);
-                Some(Expression::unary_neg(expr?))
+                Some(Expression::negate(expr?))
             }
             Token::Bang => {
                 stream.drop();
                 let expr = unary(stream);
-                Some(Expression::unary_not(expr?))
+                Some(Expression::not(expr?))
             }
             _ => primary(stream),
         },
