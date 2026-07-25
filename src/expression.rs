@@ -1,5 +1,27 @@
 use std::fmt;
 
+pub struct InFix {
+    left: Box<Expression>,
+    op: Operator,
+    right: Box<Expression>,
+}
+
+impl InFix {
+    fn new(left: Expression, op: Operator, right: Expression) -> Self {
+        Self {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        }
+    }
+}
+
+impl fmt::Display for InFix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {} {})", self.op, self.left, self.right)
+    }
+}
+
 pub enum Expression {
     Number(f64),
     String(String),
@@ -7,11 +29,7 @@ pub enum Expression {
     False,
     Nil,
     Unary(UnaryOp, Box<Expression>),
-    Binary {
-        left: Box<Expression>,
-        op: Operator,
-        right: Box<Expression>,
-    },
+    Binary(InFix),
     Grouping(Box<Expression>),
 }
 
@@ -24,7 +42,7 @@ impl fmt::Display for Expression {
             Self::False => write!(f, "false"),
             Self::Nil => write!(f, "nil"),
             Self::Unary(op, x) => write!(f, "({} {})", op, x),
-            Self::Binary { left, op, right } => write!(f, "({} {} {})", op, left, right),
+            Self::Binary(x) => x.fmt(f),
             Self::Grouping(e) => write!(f, "(group {})", e),
         }
     }
@@ -44,7 +62,7 @@ impl fmt::Display for UnaryOp {
     }
 }
 
-enum Operator {
+pub enum Operator {
     IsEqual,
     NotEqual,
     LessThan,
@@ -55,6 +73,12 @@ enum Operator {
     Sub,
     Mul,
     Div,
+}
+
+impl Operator {
+    pub fn expr(self, left: Expression, right: Expression) -> Expression {
+        Expression::Binary(InFix::new(left, self, right))
+    }
 }
 
 impl fmt::Display for Operator {
@@ -93,24 +117,16 @@ impl Expression {
     pub fn not(expr: Expression) -> Expression {
         Expression::Unary(UnaryOp::Bang, Box::new(expr))
     }
+
+    pub fn binary(op: Operator, left: Expression, right: Expression) -> Expression {
+        Expression::Binary(InFix::new(left, op, right))
+    }
 }
 
 // functions for demonstrating pretty-printing of expression
 
-fn binary(left: Expression, op: Operator, right: Expression) -> Expression {
-    Expression::Binary {
-        left: Box::new(left),
-        op,
-        right: Box::new(right),
-    }
-}
-
-fn add(left: Expression, right: Expression) -> Expression {
-    binary(left, Operator::Add, right)
-}
-
 fn mul(left: Expression, right: Expression) -> Expression {
-    binary(left, Operator::Mul, right)
+    Operator::Mul.expr(left, right)
 }
 
 pub fn demo() -> Expression {
@@ -118,7 +134,7 @@ pub fn demo() -> Expression {
     let n2 = Expression::number(23.2);
     let n3 = Expression::number(23.2);
     let n4 = Expression::number(10.1);
-    let x = add(n1, n2);
+    let x = Operator::Add.expr(n1, n2);
     let y = mul(Expression::grouping(x), mul(n3, Expression::negate(n4)));
     y
 }

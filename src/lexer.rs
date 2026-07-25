@@ -94,7 +94,7 @@ enum State {
     InComment,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Keyword {
     And,
     Class,
@@ -114,7 +114,7 @@ pub enum Keyword {
     While,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     // single-character tokens
     LeftParen,
