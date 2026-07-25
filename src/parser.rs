@@ -22,9 +22,11 @@ pub struct TokenStream {
 }
 
 impl TokenStream {
-
     pub fn new(iter: IntoIter<TokenContext>) -> Self {
-        let mut stream = Self{iter, current: None};
+        let mut stream = Self {
+            iter,
+            current: None,
+        };
         stream.advance();
         stream
     }
@@ -45,19 +47,20 @@ impl TokenStream {
     }
 
     fn expect(&mut self, f: fn(&Token) -> Option<Operator>) -> Result<Option<Operator>, Token> {
-        match self.advance() {
+        match self.peek() {
             Some(TokenContext {
                 token: t,
                 context: _c,
-            }) => match f(&t) {
+            }) => match f(t) {
                 None => {
                     println!("stream expect rejects {:?}", t);
-                    Err(t)
-                },
+                    Ok(None)
+                }
                 x => {
                     println!("stream expect accepts {:?} => {:?}", t, x);
+                    self.drop();
                     Ok(x)
-                },
+                }
             },
             None => Ok(None),
         }
@@ -193,7 +196,7 @@ fn unary(stream: &mut TokenStream) -> Option<Expression> {
             _ => {
                 println!("unary: not unary");
                 primary(stream)
-            },
+            }
         },
         None => None,
     }
@@ -204,7 +207,7 @@ fn primary(stream: &mut TokenStream) -> Option<Expression> {
     match &x {
         Some(y) => println!("primary: returned {}", y),
         None => println!("primary: returned None"),
-        };
+    };
     x
 }
 

@@ -1,11 +1,17 @@
-use loxrsi::expression::demo;
 use loxrsi::lexer::lex;
 use loxrsi::parser::{TokenStream, expression};
+use std::env;
 
 fn main() {
-    println!("{}", demo());
-    let text = "1+2\n";
-    let tokens = lex(text).expect("!!");
+    let mut text = env::args().skip(1).collect::<Vec<_>>().join(" ");
+    text.push_str("\n");
+    println!("{}", text);
+
+    //let text = "1+2* 4\n";
+    let tokens = lex(&text).expect("!!");
+    for token in &tokens {
+        println!("{:?}", token);
+    }
     let mut stream = TokenStream::new(tokens.into_iter());
     let output = expression(&mut stream).expect("output!");
 
