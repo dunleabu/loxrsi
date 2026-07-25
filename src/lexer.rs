@@ -356,7 +356,7 @@ fn step(state: State, text: &mut TextInput) -> StepOut {
     }
 }
 
-pub fn lex(s: &String) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
+pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
     let mut txt = TextInput::new(s);
     //txt.pr();
     let mut state = State::Start;

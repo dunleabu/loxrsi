@@ -16,17 +16,27 @@ primary        → NUMBER | STRING | "true" | "false" | "nil"
                | "(" expression ")" ;
 */
 
-struct TokenStream {
+pub struct TokenStream {
     iter: IntoIter<TokenContext>,
     current: Option<TokenContext>,
 }
 
 impl TokenStream {
+
+    pub fn new(iter: IntoIter<TokenContext>) -> Self {
+        let mut stream = Self{iter, current: None};
+        stream.advance();
+        stream
+    }
+
     fn advance(&mut self) -> Option<TokenContext> {
-        replace(&mut self.current, self.iter.next())
+        let x = replace(&mut self.current, self.iter.next());
+        println!("stream advance: {:?}", x);
+        x
     }
 
     fn peek(&self) -> &Option<TokenContext> {
+        println!("stream peek: {:?}", self.current);
         &self.current
     }
 
@@ -40,8 +50,14 @@ impl TokenStream {
                 token: t,
                 context: _c,
             }) => match f(&t) {
-                None => Err(t),
-                x => Ok(x),
+                None => {
+                    println!("stream expect rejects {:?}", t);
+                    Err(t)
+                },
+                x => {
+                    println!("stream expect accepts {:?} => {:?}", t, x);
+                    Ok(x)
+                },
             },
             None => Ok(None),
         }
@@ -49,6 +65,14 @@ impl TokenStream {
 }
 
 // Token filtering functions
+
+fn eq_or_not_eq(x: &Token) -> Option<Operator> {
+    match x {
+        Token::EqualEqual => Some(Operator::IsEqual),
+        Token::BangEqual => Some(Operator::NotEqual),
+        _ => None,
+    }
+}
 
 fn inequality(x: &Token) -> Option<Operator> {
     match x {
@@ -78,19 +102,33 @@ fn star_or_slash(x: &Token) -> Option<Operator> {
 
 // Parsing functions
 
-fn expression(stream: &mut TokenStream) -> Option<Expression> {
-    todo!("expression!")
+pub fn expression(stream: &mut TokenStream) -> Option<Expression> {
+    println!("enter expression");
+    equality(stream)
 }
 
 fn equality(stream: &mut TokenStream) -> Option<Expression> {
-    todo!("equality!")
+    println!("enter equality");
+    let left = comparison(stream)?;
+
+    match stream.expect(eq_or_not_eq) {
+        Ok(None) => Some(left),
+        Ok(Some(op)) => {
+            let right = equality(stream).expect("unterminated equality expression");
+            Some(op.expr(left, right))
+        }
+        Err(x) => {
+            panic!("unexpected token after comparison expression: {:?}", x);
+        }
+    }
 }
 
 fn comparison(stream: &mut TokenStream) -> Option<Expression> {
+    println!("enter comparison");
     let left = term(stream)?;
 
     match stream.expect(inequality) {
-        Ok(None) => None,
+        Ok(None) => Some(left),
         Ok(Some(op)) => {
             let right = comparison(stream).expect("unterminated comparison expression");
             Some(op.expr(left, right))
@@ -102,10 +140,11 @@ fn comparison(stream: &mut TokenStream) -> Option<Expression> {
 }
 
 fn term(stream: &mut TokenStream) -> Option<Expression> {
+    println!("enter term");
     let left = factor(stream)?;
 
     match stream.expect(plus_or_minus) {
-        Ok(None) => None,
+        Ok(None) => Some(left),
         Ok(Some(op)) => {
             let right = term(stream).expect("unterminated term expression");
             Some(op.expr(left, right))
@@ -117,10 +156,11 @@ fn term(stream: &mut TokenStream) -> Option<Expression> {
 }
 
 fn factor(stream: &mut TokenStream) -> Option<Expression> {
+    println!("enter factor");
     let left = unary(stream)?;
 
     match stream.expect(star_or_slash) {
-        Ok(None) => None,
+        Ok(None) => Some(left),
         Ok(Some(op)) => {
             let right = factor(stream).expect("unterminated factor expression");
             Some(op.expr(left, right))
@@ -132,28 +172,44 @@ fn factor(stream: &mut TokenStream) -> Option<Expression> {
 }
 
 fn unary(stream: &mut TokenStream) -> Option<Expression> {
+    println!("enter unary");
     match stream.peek() {
         Some(TokenContext {
             token: t,
             context: _c,
         }) => match t {
             Token::Minus => {
+                println!("unary: found minus");
                 stream.drop();
                 let expr = unary(stream);
                 Some(Expression::negate(expr?))
             }
             Token::Bang => {
+                println!("unary: found plus");
                 stream.drop();
                 let expr = unary(stream);
                 Some(Expression::not(expr?))
             }
-            _ => primary(stream),
+            _ => {
+                println!("unary: not unary");
+                primary(stream)
+            },
         },
         None => None,
     }
 }
 
 fn primary(stream: &mut TokenStream) -> Option<Expression> {
+    let x = _primary(stream);
+    match &x {
+        Some(y) => println!("primary: returned {}", y),
+        None => println!("primary: returned None"),
+        };
+    x
+}
+
+fn _primary(stream: &mut TokenStream) -> Option<Expression> {
+    println!("enter primary");
     match stream.advance() {
         Some(TokenContext {
             token: t,

@@ -62,6 +62,7 @@ impl fmt::Display for UnaryOp {
     }
 }
 
+#[derive(Debug)]
 pub enum Operator {
     IsEqual,
     NotEqual,
