@@ -59,7 +59,10 @@ impl<'a> TextInput<'_> {
     }
 
     fn slice(&self) -> &str {
-        &self.data[self.left..self.right] //.to_string()
+        match self.current {
+            Some(_) => &self.data[self.left..self.right], //.to_string()
+            None => &self.data[self.left..self.right + 1], //.to_string()
+        }
     }
 
     fn pr(&self) -> () {
@@ -92,6 +95,7 @@ enum State {
     OnGreater,
     OnLess,
     InComment,
+    AddDot, // special state that should always add a dot next turn
 }
 
 #[derive(Debug, PartialEq)]
@@ -209,12 +213,18 @@ fn to_number(text: &mut TextInput) -> StepOut {
     {
         text.step();
         if step_digits(text) == 0 {
+            let number = text
+                .slice()
+                .strip_suffix('.')
+                .unwrap()
+                .parse::<f64>()
+                .expect("failed number conversion!");
             return (
-                State::Start,
-                Some(text.add_context(Token::Error(format!(
-                    "unterminated number: {}",
-                    text.slice()
-                )))),
+                State::AddDot,
+                Some(text.add_context(Token::Number(number))), //Some(text.add_context(Token::Error(format!(
+                                                               //    "unterminated number: {}",
+                                                               //    text.slice()
+                                                               //)))),
             );
         }
     }
@@ -361,6 +371,7 @@ fn step(state: State, text: &mut TextInput) -> StepOut {
         State::OnGreater => if_equal(text, Token::GreaterEqual, Token::Greater),
         State::OnLess => if_equal(text, Token::LessEqual, Token::Less),
         State::InComment => from_comment(text),
+        State::AddDot => (State::Start, Some(text.add_context(Token::Dot))),
     }
 }
 
@@ -403,6 +414,9 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
 
         //txt.step();
         //txt.pr();
+    }
+    if matches!(state, State::AddDot) {
+        tokens.push(txt.add_context(Token::Dot))
     }
     if has_error { Err(errors) } else { Ok(tokens) }
 }
