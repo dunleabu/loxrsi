@@ -82,6 +82,10 @@ impl Expression {
     pub fn string(s: String) -> Expression {
         Expression::String(s)
     }
+
+    pub fn grouping(expr: Expression) -> Expression {
+        Expression::Grouping(Box::new(expr))
+    }
 }
 
 // functions for demonstrating pretty-printing of expression

@@ -2,7 +2,7 @@ use std::mem::replace;
 use std::vec::IntoIter;
 
 use crate::expression::Expression;
-use crate::lexer::{Context, Token, TokenContext};
+use crate::lexer::{Context, Keyword, Token, TokenContext};
 
 /*
 expression     → equality ;
@@ -35,12 +35,42 @@ fn primary(stream: &mut TokenStream) -> Option<Expression> {
     match stream.advance() {
         Some(TokenContext {
             token: t,
-            context: c,
+            context: _c,
         }) => Some(match t {
             Token::Number(n) => Expression::number(n),
             Token::String(s) => Expression::string(s),
-            x => panic!("not supported! {:?}", x),
+            Token::Keyword(Keyword::True) => Expression::True,
+            Token::Keyword(Keyword::False) => Expression::False,
+            Token::Keyword(Keyword::Nil) => Expression::Nil,
+            Token::LeftParen => {
+                let expr = expression(stream);
+                match stream.peek() {
+                    Some(TokenContext {
+                        token: Token::RightParen,
+                        ..
+                    }) => {
+                        stream.advance();
+                        Expression::grouping(expr)
+                    }
+                    x => panic!("no ) in grouping: {:?}", x),
+                }
+            }
+            x => panic!("not supported as primary! {:?}", x),
         }),
+        None => None,
+    }
+}
+
+fn unary(stream: &mut TokenStream) -> Option<Expression> {
+    match stream.peek() {
+        Some(TokenContext {
+            token: t,
+            context: _c,
+        }) => match t {
+            _ => {
+                panic!("unary matching");
+            }
+        },
         None => None,
     }
 }
