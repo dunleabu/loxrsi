@@ -100,7 +100,7 @@ impl State {
         match self {
             Self::AddDot => Some(Token::Dot),
             Self::OnLookahead { single, .. } => Some(single),
-            _ => None,
+            Self::Start | Self::InComment => None,
         }
     }
 }
