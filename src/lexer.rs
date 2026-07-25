@@ -53,16 +53,16 @@ impl<'a> TextInput<'_> {
                     self.char_pos += 1;
                 }
             }
-            None => self.current = None,
+            None => {
+                self.current = None;
+                self.right = self.data.len();
+            }
         }
         self.current
     }
 
     fn slice(&self) -> &str {
-        match self.current {
-            Some(_) => &self.data[self.left..self.right], //.to_string()
-            None => &self.data[self.left..self.right + 1], //.to_string()
-        }
+        &self.data[self.left..self.right]
     }
 
     fn pr(&self) -> () {
@@ -643,6 +643,52 @@ mod tests {
     #[test]
     fn leading_dot_before_digits() {
         assert_eq!(lex_ok(".5"), vec![Token::Dot, num(5.0)]);
+    }
+
+    #[test]
+    fn trailing_dot_before_more_input() {
+        assert_eq!(lex_ok("123.;"), vec![num(123.0), Token::Dot, Token::Semicolon]);
+        assert_eq!(lex_ok("123. "), vec![num(123.0), Token::Dot]);
+        assert_eq!(lex_ok("0."), vec![num(0.0), Token::Dot]);
+    }
+
+    // The re-emitted dot must not swallow or duplicate a following dot.
+    #[test]
+    fn number_with_two_trailing_dots() {
+        assert_eq!(lex_ok("123.."), vec![num(123.0), Token::Dot, Token::Dot]);
+    }
+
+    // Only the first dot joins the number; the rest are separate tokens.
+    #[test]
+    fn dotted_access_on_number() {
+        assert_eq!(lex_ok("1.2.3"), vec![num(1.2), Token::Dot, num(3.0)]);
+        assert_eq!(lex_ok("1.a"), vec![num(1.0), Token::Dot, id("a")]);
+    }
+
+    // ---- non-ascii ----
+
+    // `okay_for_id` accepts any alphanumeric, so identifiers may be non-ascii.
+    // Multi-byte chars at end of input exercise the slice boundary.
+    #[test]
+    fn unicode_identifier() {
+        assert_eq!(lex_ok("café"), vec![id("café")]);
+        assert_eq!(lex_ok("é"), vec![id("é")]);
+        assert_eq!(lex_ok("café;"), vec![id("café"), Token::Semicolon]);
+    }
+
+    #[test]
+    fn unicode_string_contents() {
+        assert_eq!(lex_ok("\"héllo\""), vec![string("héllo")]);
+    }
+
+    #[test]
+    fn unicode_after_slash_at_eof() {
+        assert_eq!(lex_ok("/é"), vec![Token::Slash, id("é")]);
+    }
+
+    #[test]
+    fn non_alphanumeric_unicode_is_error() {
+        assert!(lex("€").is_err());
     }
 
     // ---- identifiers ----
