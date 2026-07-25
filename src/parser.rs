@@ -29,6 +29,14 @@ impl TokenStream {
     fn peek(&self) -> &Option<TokenContext> {
         &self.current
     }
+
+    fn drop(&mut self) {
+        let _ = self.advance();
+    }
+}
+
+fn expression(stream: &mut TokenStream) -> Option<Expression> {
+    panic!("EXPRESSION!")
 }
 
 fn primary(stream: &mut TokenStream) -> Option<Expression> {
@@ -49,8 +57,8 @@ fn primary(stream: &mut TokenStream) -> Option<Expression> {
                         token: Token::RightParen,
                         ..
                     }) => {
-                        stream.advance();
-                        Expression::grouping(expr)
+                        stream.drop();
+                        Expression::grouping(expr?)
                     }
                     x => panic!("no ) in grouping: {:?}", x),
                 }
@@ -61,15 +69,24 @@ fn primary(stream: &mut TokenStream) -> Option<Expression> {
     }
 }
 
+/// peek: if +/- parse rest as 1ary else parse all as 1ary
 fn unary(stream: &mut TokenStream) -> Option<Expression> {
     match stream.peek() {
         Some(TokenContext {
             token: t,
             context: _c,
         }) => match t {
-            _ => {
-                panic!("unary matching");
+            Token::Minus => {
+                stream.drop();
+                let expr = unary(stream);
+                Some(Expression::unary_neg(expr?))
             }
+            Token::Bang => {
+                stream.drop();
+                let expr = unary(stream);
+                Some(Expression::unary_not(expr?))
+            }
+            _ => primary(stream),
         },
         None => None,
     }

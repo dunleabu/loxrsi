@@ -86,6 +86,13 @@ impl Expression {
     pub fn grouping(expr: Expression) -> Expression {
         Expression::Grouping(Box::new(expr))
     }
+
+    pub fn unary_neg(expr: Expression) -> Expression {
+        Expression::Unary(UnaryOp::Minus, Box::new(expr))
+    }
+    pub fn unary_not(expr: Expression) -> Expression {
+        Expression::Unary(UnaryOp::Bang, Box::new(expr))
+    }
 }
 
 // functions for demonstrating pretty-printing of expression
