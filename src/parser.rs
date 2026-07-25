@@ -1,28 +1,35 @@
+// Parse the following syntax
+//
+// expression     → equality ;
+// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
+// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+// term           → factor ( ( "-" | "+" ) factor )* ;
+// factor         → unary ( ( "/" | "*" ) unary )* ;
+// unary          → ( "!" | "-" ) unary
+//                | primary ;
+// primary        → NUMBER | STRING | "true" | "false" | "nil"
+//                | "(" expression ")" ;
 use std::mem::replace;
 use std::vec::IntoIter;
 
 use crate::expression::{Expression, Operator};
 use crate::lexer::{Context, Keyword, Token, TokenContext};
 
-/*
-expression     → equality ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "-" ) unary
-               | primary ;
-primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" ;
-*/
+// public entrypoint
 
-pub struct TokenStream {
+pub fn parse(tokens: IntoIter<TokenContext>) -> Option<Expression> {
+    expression(&mut TokenStream::new(tokens))
+}
+
+// Tool for reading token streams
+
+struct TokenStream {
     iter: IntoIter<TokenContext>,
     current: Option<TokenContext>,
 }
 
 impl TokenStream {
-    pub fn new(iter: IntoIter<TokenContext>) -> Self {
+    fn new(iter: IntoIter<TokenContext>) -> Self {
         let mut stream = Self {
             iter,
             current: None,
@@ -105,7 +112,7 @@ fn star_or_slash(x: &Token) -> Option<Operator> {
 
 // Parsing functions
 
-pub fn expression(stream: &mut TokenStream) -> Option<Expression> {
+fn expression(stream: &mut TokenStream) -> Option<Expression> {
     println!("enter expression");
     equality(stream)
 }

@@ -1,5 +1,5 @@
 use loxrsi::lexer::lex;
-use loxrsi::parser::{TokenStream, expression};
+use loxrsi::parser::parse;
 use std::env;
 
 fn main() {
@@ -12,8 +12,8 @@ fn main() {
     for token in &tokens {
         println!("{:?}", token);
     }
-    let mut stream = TokenStream::new(tokens.into_iter());
-    let output = expression(&mut stream).expect("output!");
+    //let mut stream = TokenStream::new(tokens.into_iter());
+    let output = parse(tokens.into_iter()).expect("output!");
 
     println!("{}", output);
 }
