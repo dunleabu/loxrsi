@@ -46,7 +46,7 @@ impl TokenStream {
         let _ = self.advance();
     }
 
-    fn expect(&mut self, f: fn(&Token) -> Option<Operator>) -> Result<Option<Operator>, Token> {
+    fn expect(&mut self, f: fn(&Token) -> Option<Operator>) -> Option<Operator> {
         match self.peek() {
             Some(TokenContext {
                 token: t,
@@ -54,15 +54,15 @@ impl TokenStream {
             }) => match f(t) {
                 None => {
                     println!("stream expect rejects {:?}", t);
-                    Ok(None)
+                    None
                 }
                 x => {
                     println!("stream expect accepts {:?} => {:?}", t, x);
                     self.drop();
-                    Ok(x)
+                    x
                 }
             },
-            None => Ok(None),
+            None => None,
         }
     }
 }
@@ -115,13 +115,10 @@ fn equality(stream: &mut TokenStream) -> Option<Expression> {
     let left = comparison(stream)?;
 
     match stream.expect(eq_or_not_eq) {
-        Ok(None) => Some(left),
-        Ok(Some(op)) => {
+        None => Some(left),
+        Some(op) => {
             let right = equality(stream).expect("unterminated equality expression");
             Some(op.expr(left, right))
-        }
-        Err(x) => {
-            panic!("unexpected token after comparison expression: {:?}", x);
         }
     }
 }
@@ -131,13 +128,10 @@ fn comparison(stream: &mut TokenStream) -> Option<Expression> {
     let left = term(stream)?;
 
     match stream.expect(inequality) {
-        Ok(None) => Some(left),
-        Ok(Some(op)) => {
+        None => Some(left),
+        Some(op) => {
             let right = comparison(stream).expect("unterminated comparison expression");
             Some(op.expr(left, right))
-        }
-        Err(x) => {
-            panic!("unexpected token after term expression: {:?}", x);
         }
     }
 }
@@ -147,13 +141,10 @@ fn term(stream: &mut TokenStream) -> Option<Expression> {
     let left = factor(stream)?;
 
     match stream.expect(plus_or_minus) {
-        Ok(None) => Some(left),
-        Ok(Some(op)) => {
+        None => Some(left),
+        Some(op) => {
             let right = term(stream).expect("unterminated term expression");
             Some(op.expr(left, right))
-        }
-        Err(x) => {
-            panic!("unexpected token after factor expression: {:?}", x);
         }
     }
 }
@@ -163,13 +154,10 @@ fn factor(stream: &mut TokenStream) -> Option<Expression> {
     let left = unary(stream)?;
 
     match stream.expect(star_or_slash) {
-        Ok(None) => Some(left),
-        Ok(Some(op)) => {
+        None => Some(left),
+        Some(op) => {
             let right = factor(stream).expect("unterminated factor expression");
             Some(op.expr(left, right))
-        }
-        Err(x) => {
-            panic!("unexpected token after unary expression: {:?}", x);
         }
     }
 }
