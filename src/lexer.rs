@@ -90,12 +90,19 @@ impl<'a> TextInput<'_> {
 
 enum State {
     Start,
-    OnBang,
-    OnEqual,
-    OnGreater,
-    OnLess,
+    OnLookahead { single: Token, double: Token },
     InComment,
     AddDot, // special state that should always add a dot next turn
+}
+
+impl State {
+    fn flush(self) -> Option<Token> {
+        match self {
+            Self::AddDot => Some(Token::Dot),
+            Self::OnLookahead { single, .. } => Some(single),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -169,12 +176,8 @@ fn with_step(text: &mut TextInput, state: State, token: Option<TokenContext>) ->
     (state, token)
 }
 
-fn emit_if_end(text: &mut TextInput, state: State, token: Token) -> StepOut {
-    text.step();
-    match text.current {
-        None => (State::Start, Some(text.add_context(token))),
-        Some(_) => (state, None),
-    }
+fn on_lookahead(text: &mut TextInput, single: Token, double: Token) -> StepOut {
+    with_step(text, State::OnLookahead { single, double }, None)
 }
 
 fn to_start(text: &mut TextInput, token: Token) -> StepOut {
@@ -323,10 +326,10 @@ fn from_start(text: &mut TextInput) -> StepOut {
                 //'/' => to_start(text, Token::Slash),
                 '*' => to_start(text, Token::Star),
                 // possible double-char
-                '!' => emit_if_end(text, State::OnBang, Token::Bang),
-                '=' => emit_if_end(text, State::OnEqual, Token::Equal),
-                '>' => emit_if_end(text, State::OnGreater, Token::Greater),
-                '<' => emit_if_end(text, State::OnLess, Token::Less),
+                '!' => on_lookahead(text, Token::Bang, Token::BangEqual),
+                '=' => on_lookahead(text, Token::Equal, Token::EqualEqual),
+                '>' => on_lookahead(text, Token::Greater, Token::GreaterEqual),
+                '<' => on_lookahead(text, Token::Less, Token::LessEqual),
                 // multi-character
                 '/' => maybe_comment(text),
                 '"' => to_string(text),
@@ -366,10 +369,7 @@ fn from_comment(text: &mut TextInput) -> StepOut {
 fn step(state: State, text: &mut TextInput) -> StepOut {
     match state {
         State::Start => from_start(text),
-        State::OnBang => if_equal(text, Token::BangEqual, Token::Bang),
-        State::OnEqual => if_equal(text, Token::EqualEqual, Token::Equal),
-        State::OnGreater => if_equal(text, Token::GreaterEqual, Token::Greater),
-        State::OnLess => if_equal(text, Token::LessEqual, Token::Less),
+        State::OnLookahead { single, double } => if_equal(text, double, single),
         State::InComment => from_comment(text),
         State::AddDot => (State::Start, Some(text.add_context(Token::Dot))),
     }
@@ -383,9 +383,6 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
     let mut tokens: Vec<TokenContext> = Vec::new();
     let mut errors: Vec<TokenContext> = Vec::new();
     while let Some(c) = txt.current {
-        if c == 'o' {
-            txt.mark();
-        }
         if c == '\n' {
             txt.mark();
         }
@@ -411,12 +408,10 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
             }
         }
         state = s;
-
-        //txt.step();
-        //txt.pr();
     }
-    if matches!(state, State::AddDot) {
-        tokens.push(txt.add_context(Token::Dot))
+    // Flush unemitted tokens
+    if let Some(token) = state.flush() {
+        tokens.push(txt.add_context(token));
     }
     if has_error { Err(errors) } else { Ok(tokens) }
 }
@@ -575,6 +570,32 @@ mod tests {
         assert_eq!(lex_ok("="), vec![Token::Equal]);
     }
 
+    #[test]
+    fn bare_less_at_eof() {
+        assert_eq!(lex_ok("<"), vec![Token::Less]);
+    }
+
+    // The fallback must not depend on whether input follows the operator.
+    #[test]
+    fn lookahead_operators_agree_at_eof_and_mid_input() {
+        for (src, expected) in [
+            ("!", Token::Bang),
+            ("=", Token::Equal),
+            (">", Token::Greater),
+            ("<", Token::Less),
+        ] {
+            assert_eq!(lex_ok(src), vec![expected]);
+        }
+        for (src, expected) in [
+            ("! ", Token::Bang),
+            ("= ", Token::Equal),
+            ("> ", Token::Greater),
+            ("< ", Token::Less),
+        ] {
+            assert_eq!(lex_ok(src), vec![expected]);
+        }
+    }
+
     // ---- strings ----
 
     #[test]
@@ -647,7 +668,10 @@ mod tests {
 
     #[test]
     fn trailing_dot_before_more_input() {
-        assert_eq!(lex_ok("123.;"), vec![num(123.0), Token::Dot, Token::Semicolon]);
+        assert_eq!(
+            lex_ok("123.;"),
+            vec![num(123.0), Token::Dot, Token::Semicolon]
+        );
         assert_eq!(lex_ok("123. "), vec![num(123.0), Token::Dot]);
         assert_eq!(lex_ok("0."), vec![num(0.0), Token::Dot]);
     }
