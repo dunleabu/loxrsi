@@ -398,3 +398,396 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
     }
     if has_error { Err(errors) } else { Ok(tokens) }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Expected tokens below were worked out by hand from the Lox language
+    //! definition, independent of the lexer implementation. Some of these are
+    //! deliberate corner cases and may currently fail.
+    use super::*;
+
+    /// Lex `input`, asserting success, and return just the tokens.
+    fn lex_ok(input: &str) -> Vec<Token> {
+        lex(input)
+            .expect("expected a successful lex")
+            .into_iter()
+            .map(|tc| tc.token)
+            .collect()
+    }
+
+    /// Lex `input`, asserting it produced errors, and return the error tokens.
+    fn lex_err(input: &str) -> Vec<Token> {
+        lex(input)
+            .expect_err("expected a lex error")
+            .into_iter()
+            .map(|tc| tc.token)
+            .collect()
+    }
+
+    fn id(s: &str) -> Token {
+        Token::Identifier(s.to_string())
+    }
+    fn string(s: &str) -> Token {
+        Token::String(s.to_string())
+    }
+    fn num(n: f64) -> Token {
+        Token::Number(n)
+    }
+    fn kw(k: Keyword) -> Token {
+        Token::Keyword(k)
+    }
+
+    // ---- empty / whitespace ----
+
+    #[test]
+    fn empty_input_yields_no_tokens() {
+        assert_eq!(lex_ok(""), vec![]);
+    }
+
+    #[test]
+    fn whitespace_only_yields_no_tokens() {
+        assert_eq!(lex_ok("   \t\n  \n\t "), vec![]);
+    }
+
+    // ---- single-character tokens ----
+
+    #[test]
+    fn all_single_character_tokens() {
+        assert_eq!(
+            lex_ok("(){},.-+;*/"),
+            vec![
+                Token::LeftParen,
+                Token::RightParen,
+                Token::LeftBrace,
+                Token::RightBrace,
+                Token::Comma,
+                Token::Dot,
+                Token::Minus,
+                Token::Plus,
+                Token::Semicolon,
+                Token::Star,
+                Token::Slash,
+            ]
+        );
+    }
+
+    #[test]
+    fn lone_slash_is_division() {
+        assert_eq!(lex_ok("/"), vec![Token::Slash]);
+        assert_eq!(
+            lex_ok("a / b"),
+            vec![id("a"), Token::Slash, id("b")]
+        );
+    }
+
+    // ---- comments ----
+
+    #[test]
+    fn comment_line_produces_no_tokens() {
+        assert_eq!(lex_ok("// this is a comment"), vec![]);
+    }
+
+    #[test]
+    fn comment_without_trailing_newline() {
+        assert_eq!(lex_ok("// no newline at eof"), vec![]);
+    }
+
+    #[test]
+    fn code_after_comment_on_next_line() {
+        assert_eq!(lex_ok("// comment\n+"), vec![Token::Plus]);
+    }
+
+    #[test]
+    fn code_before_comment_on_same_line() {
+        assert_eq!(
+            lex_ok("+ // trailing comment\n-"),
+            vec![Token::Plus, Token::Minus]
+        );
+    }
+
+    // ---- one-or-two character operators ----
+
+    #[test]
+    fn bang_and_bang_equal() {
+        assert_eq!(lex_ok("! "), vec![Token::Bang]);
+        assert_eq!(lex_ok("!="), vec![Token::BangEqual]);
+    }
+
+    #[test]
+    fn equal_and_equal_equal() {
+        assert_eq!(lex_ok("= "), vec![Token::Equal]);
+        assert_eq!(lex_ok("=="), vec![Token::EqualEqual]);
+    }
+
+    #[test]
+    fn comparison_operators() {
+        assert_eq!(lex_ok("< "), vec![Token::Less]);
+        assert_eq!(lex_ok("<="), vec![Token::LessEqual]);
+        assert_eq!(lex_ok("> "), vec![Token::Greater]);
+        assert_eq!(lex_ok(">="), vec![Token::GreaterEqual]);
+    }
+
+    #[test]
+    fn operators_run_together() {
+        // "!=" "<=" ">=" "=="
+        assert_eq!(
+            lex_ok("!=<=>==="),
+            vec![
+                Token::BangEqual,
+                Token::LessEqual,
+                Token::GreaterEqual,
+                Token::EqualEqual,
+            ]
+        );
+    }
+
+    // Corner case: an operator needing lookahead sitting at EOF.
+    #[test]
+    fn bare_bang_at_eof() {
+        assert_eq!(lex_ok("!"), vec![Token::Bang]);
+    }
+
+    #[test]
+    fn bare_greater_at_eof() {
+        assert_eq!(lex_ok(">"), vec![Token::Greater]);
+    }
+
+    #[test]
+    fn bare_equal_at_eof() {
+        assert_eq!(lex_ok("="), vec![Token::Equal]);
+    }
+
+    // ---- strings ----
+
+    #[test]
+    fn simple_string() {
+        assert_eq!(lex_ok("\"hello\""), vec![string("hello")]);
+    }
+
+    #[test]
+    fn empty_string() {
+        assert_eq!(lex_ok("\"\""), vec![string("")]);
+    }
+
+    #[test]
+    fn string_with_spaces_and_punctuation() {
+        assert_eq!(
+            lex_ok("\"a b, c! 123\""),
+            vec![string("a b, c! 123")]
+        );
+    }
+
+    #[test]
+    fn string_keeps_slashes_and_keywords_literal() {
+        assert_eq!(
+            lex_ok("\"and // not a comment\""),
+            vec![string("and // not a comment")]
+        );
+    }
+
+    #[test]
+    fn unterminated_string_is_error() {
+        assert!(lex("\"no closing quote").is_err());
+    }
+
+    // ---- numbers ----
+
+    #[test]
+    fn integer_literal() {
+        assert_eq!(lex_ok("123"), vec![num(123.0)]);
+    }
+
+    #[test]
+    fn integer_followed_by_semicolon() {
+        assert_eq!(lex_ok("123;"), vec![num(123.0), Token::Semicolon]);
+    }
+
+    #[test]
+    fn zero_literal() {
+        assert_eq!(lex_ok("0"), vec![num(0.0)]);
+    }
+
+    #[test]
+    fn decimal_literal() {
+        assert_eq!(lex_ok("3.14"), vec![num(3.14)]);
+    }
+
+    #[test]
+    fn decimal_followed_by_semicolon() {
+        assert_eq!(lex_ok("3.14;"), vec![num(3.14), Token::Semicolon]);
+    }
+
+    // In Lox a trailing dot is not part of the number: it lexes as the
+    // number followed by a `.` token (methods can be called on numbers).
+    #[test]
+    fn number_with_trailing_dot() {
+        assert_eq!(lex_ok("123."), vec![num(123.0), Token::Dot]);
+    }
+
+    // A leading dot is likewise not part of the number.
+    #[test]
+    fn leading_dot_before_digits() {
+        assert_eq!(lex_ok(".5"), vec![Token::Dot, num(5.0)]);
+    }
+
+    // ---- identifiers ----
+
+    #[test]
+    fn simple_identifier() {
+        assert_eq!(lex_ok("foo"), vec![id("foo")]);
+    }
+
+    #[test]
+    fn identifier_followed_by_semicolon() {
+        assert_eq!(lex_ok("foo;"), vec![id("foo"), Token::Semicolon]);
+    }
+
+    #[test]
+    fn identifier_with_underscore_and_digits() {
+        assert_eq!(lex_ok("_foo_bar2"), vec![id("_foo_bar2")]);
+    }
+
+    #[test]
+    fn leading_underscore_identifier() {
+        assert_eq!(lex_ok("_"), vec![id("_")]);
+    }
+
+    // ---- keywords ----
+
+    #[test]
+    fn every_keyword() {
+        assert_eq!(
+            lex_ok("and class else false fun for if nil or print return super this true var while"),
+            vec![
+                kw(Keyword::And),
+                kw(Keyword::Class),
+                kw(Keyword::Else),
+                kw(Keyword::False),
+                kw(Keyword::Fun),
+                kw(Keyword::For),
+                kw(Keyword::If),
+                kw(Keyword::Nil),
+                kw(Keyword::Or),
+                kw(Keyword::Print),
+                kw(Keyword::Return),
+                kw(Keyword::Super),
+                kw(Keyword::This),
+                kw(Keyword::True),
+                kw(Keyword::Var),
+                kw(Keyword::While),
+            ]
+        );
+    }
+
+    // Words that merely start with a keyword are identifiers.
+    #[test]
+    fn keyword_prefixes_are_identifiers() {
+        assert_eq!(lex_ok("orchid"), vec![id("orchid")]);
+        assert_eq!(lex_ok("android"), vec![id("android")]);
+        assert_eq!(lex_ok("classy"), vec![id("classy")]);
+        assert_eq!(lex_ok("iffy"), vec![id("iffy")]);
+    }
+
+    // ---- fuller snippets ----
+
+    #[test]
+    fn var_declaration_with_spaces() {
+        assert_eq!(
+            lex_ok("var x = 10;"),
+            vec![
+                kw(Keyword::Var),
+                id("x"),
+                Token::Equal,
+                num(10.0),
+                Token::Semicolon,
+            ]
+        );
+    }
+
+    #[test]
+    fn var_declaration_without_spaces() {
+        assert_eq!(
+            lex_ok("var x=10;"),
+            vec![
+                kw(Keyword::Var),
+                id("x"),
+                Token::Equal,
+                num(10.0),
+                Token::Semicolon,
+            ]
+        );
+    }
+
+    #[test]
+    fn print_statement() {
+        assert_eq!(
+            lex_ok("print \"hi\";"),
+            vec![kw(Keyword::Print), string("hi"), Token::Semicolon]
+        );
+    }
+
+    #[test]
+    fn function_definition() {
+        assert_eq!(
+            lex_ok("fun add(a, b) { return a + b; }"),
+            vec![
+                kw(Keyword::Fun),
+                id("add"),
+                Token::LeftParen,
+                id("a"),
+                Token::Comma,
+                id("b"),
+                Token::RightParen,
+                Token::LeftBrace,
+                kw(Keyword::Return),
+                id("a"),
+                Token::Plus,
+                id("b"),
+                Token::Semicolon,
+                Token::RightBrace,
+            ]
+        );
+    }
+
+    #[test]
+    fn multiline_program() {
+        let src = "var a = 1;\nif (a >= 1) {\n  print a;\n}\n";
+        assert_eq!(
+            lex_ok(src),
+            vec![
+                kw(Keyword::Var),
+                id("a"),
+                Token::Equal,
+                num(1.0),
+                Token::Semicolon,
+                kw(Keyword::If),
+                Token::LeftParen,
+                id("a"),
+                Token::GreaterEqual,
+                num(1.0),
+                Token::RightParen,
+                Token::LeftBrace,
+                kw(Keyword::Print),
+                id("a"),
+                Token::Semicolon,
+                Token::RightBrace,
+            ]
+        );
+    }
+
+    // ---- errors ----
+
+    #[test]
+    fn bad_character_is_error() {
+        assert!(lex("@").is_err());
+        // The good tokens around it should not turn it into a success.
+        assert!(lex("a @ b").is_err());
+    }
+
+    #[test]
+    fn bad_character_reports_error_token() {
+        let errs = lex_err("@");
+        assert_eq!(errs.len(), 1);
+        assert!(matches!(errs[0], Token::Error(_)));
+    }
+}
