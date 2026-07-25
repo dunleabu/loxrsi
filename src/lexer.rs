@@ -165,6 +165,14 @@ fn with_step(text: &mut TextInput, state: State, token: Option<TokenContext>) ->
     (state, token)
 }
 
+fn emit_if_end(text: &mut TextInput, state: State, token: Token) -> StepOut {
+    text.step();
+    match text.current {
+        None => (State::Start, Some(text.add_context(token))),
+        Some(_) => (state, None),
+    }
+}
+
 fn to_start(text: &mut TextInput, token: Token) -> StepOut {
     with_step(text, State::Start, Some(text.add_context(token)))
 }
@@ -305,10 +313,10 @@ fn from_start(text: &mut TextInput) -> StepOut {
                 //'/' => to_start(text, Token::Slash),
                 '*' => to_start(text, Token::Star),
                 // possible double-char
-                '!' => with_step(text, State::OnBang, None),
-                '=' => with_step(text, State::OnEqual, None),
-                '>' => with_step(text, State::OnGreater, None),
-                '<' => with_step(text, State::OnLess, None),
+                '!' => emit_if_end(text, State::OnBang, Token::Bang),
+                '=' => emit_if_end(text, State::OnEqual, Token::Equal),
+                '>' => emit_if_end(text, State::OnGreater, Token::Greater),
+                '<' => emit_if_end(text, State::OnLess, Token::Less),
                 // multi-character
                 '/' => maybe_comment(text),
                 '"' => to_string(text),
@@ -402,8 +410,7 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
 #[cfg(test)]
 mod tests {
     //! Expected tokens below were worked out by hand from the Lox language
-    //! definition, independent of the lexer implementation. Some of these are
-    //! deliberate corner cases and may currently fail.
+    //! definition, independent of the lexer implementation.
     use super::*;
 
     /// Lex `input`, asserting success, and return just the tokens.
@@ -474,10 +481,7 @@ mod tests {
     #[test]
     fn lone_slash_is_division() {
         assert_eq!(lex_ok("/"), vec![Token::Slash]);
-        assert_eq!(
-            lex_ok("a / b"),
-            vec![id("a"), Token::Slash, id("b")]
-        );
+        assert_eq!(lex_ok("a / b"), vec![id("a"), Token::Slash, id("b")]);
     }
 
     // ---- comments ----
@@ -571,10 +575,7 @@ mod tests {
 
     #[test]
     fn string_with_spaces_and_punctuation() {
-        assert_eq!(
-            lex_ok("\"a b, c! 123\""),
-            vec![string("a b, c! 123")]
-        );
+        assert_eq!(lex_ok("\"a b, c! 123\""), vec![string("a b, c! 123")]);
     }
 
     #[test]
