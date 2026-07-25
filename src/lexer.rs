@@ -366,10 +366,7 @@ pub fn lex(s: &str) -> Result<Vec<TokenContext>, Vec<TokenContext>> {
     let mut has_error = false;
     let mut tokens: Vec<TokenContext> = Vec::new();
     let mut errors: Vec<TokenContext> = Vec::new();
-    while let Some(c) = txt.current {
-        if c == '\n' {
-            txt.mark();
-        }
+    while txt.current.is_some() {
         let (s, t) = step(state, &mut txt);
         match t {
             Some(

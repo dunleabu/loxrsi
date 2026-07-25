@@ -1,0 +1,52 @@
+// numbers.lox — numeric literal heavy.
+// Stresses to_number: step_digits, the f64 parse, and the trailing-dot path
+// that produces State::AddDot. The dotted-access lines below are the only
+// inputs in the corpus that exercise AddDot at all, so this is the file to
+// watch if the dot pushback is ever reworked.
+
+var integers = 0;
+var i0 = 0; var i1 = 1; var i2 = 42; var i3 = 999; var i4 = 100000;
+var i5 = 7; var i6 = 13; var i7 = 256; var i8 = 65536; var i9 = 123456789;
+
+var decimals = 0;
+var d0 = 0.0; var d1 = 3.14159; var d2 = 2.71828; var d3 = 1.41421;
+var d4 = 0.000001; var d5 = 12345.6789; var d6 = 0.5; var d7 = 99.99;
+var d8 = 1000000.0000001; var d9 = 6.02214076;
+
+// Trailing dots: in Lox these lex as a number followed by a Dot token,
+// which is what State::AddDot exists to emit.
+var t0 = 1.;
+var t1 = 42.;
+var t2 = 0.;
+var t3 = 12345.;
+
+var sum = 0;
+sum = sum + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10;
+sum = sum + 1.5 + 2.5 + 3.5 + 4.5 + 5.5 + 6.5 + 7.5 + 8.5 + 9.5;
+sum = sum * 2 / 4 * 8 / 16 * 32 / 64 * 128 / 256;
+sum = sum - 0.125 - 0.25 - 0.375 - 0.5 - 0.625 - 0.75 - 0.875;
+
+var matrix00 = 1.0; var matrix01 = 0.0; var matrix02 = 0.0; var matrix03 = 0.0;
+var matrix10 = 0.0; var matrix11 = 1.0; var matrix12 = 0.0; var matrix13 = 0.0;
+var matrix20 = 0.0; var matrix21 = 0.0; var matrix22 = 1.0; var matrix23 = 0.0;
+var matrix30 = 0.0; var matrix31 = 0.0; var matrix32 = 0.0; var matrix33 = 1.0;
+
+fun polynomial(x) {
+  return 3.5 * x * x * x - 2.25 * x * x + 17.0 * x - 0.125;
+}
+
+fun quantize(value) {
+  if (value < 0.25) return 0;
+  if (value < 0.5) return 1;
+  if (value < 0.75) return 2;
+  if (value < 1.0) return 3;
+  return 4;
+}
+
+for (var i = 0; i < 1000; i = i + 1) {
+  sum = sum + polynomial(i * 0.001) * 0.5 + quantize(i * 0.0001) * 2.75;
+}
+
+print 0.1 + 0.2;
+print 1000000 * 1000000;
+print 0.000000001 / 1000000000;

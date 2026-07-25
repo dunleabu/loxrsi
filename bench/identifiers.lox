@@ -1,0 +1,77 @@
+// identifiers.lox — identifier and keyword heavy.
+// Stresses to_identifier: the mark/step scan loop, the keyword match on
+// slice(), and one String allocation per identifier occurrence. This is the
+// file that moves most if Token::Identifier stops owning a String.
+//
+// Deliberately includes long identifiers, short ones, underscore-heavy ones,
+// and words that merely start with a keyword (orchid, android, classy, iffy)
+// so the keyword match has to run past its prefix before failing.
+
+var a = 1;
+var ab = 2;
+var abc = 3;
+var _private_leading_underscore_value = 4;
+var camelCaseIdentifierName = 5;
+var snake_case_identifier_name = 6;
+var SCREAMING_SNAKE_CONSTANT_VALUE = 7;
+var mixed_Case_With_9_Digits_42 = 8;
+var x1 = 9; var x2 = 10; var x3 = 11; var x4 = 12; var x5 = 13;
+
+var orchid = nil;
+var android = nil;
+var classy = nil;
+var iffy = nil;
+var printer = nil;
+var returned = nil;
+var superb = nil;
+var thistle = nil;
+var truest = nil;
+var variable = nil;
+var whiles = nil;
+var forge = nil;
+var nilpotent = nil;
+var falsehood = nil;
+var funding = nil;
+var elsewhere = nil;
+var andante = nil;
+
+fun compute_weighted_running_average(current_accumulator, incoming_sample, decay_factor) {
+  var previous_accumulator_value = current_accumulator;
+  var complementary_decay_factor = 1 - decay_factor;
+  var weighted_incoming_contribution = incoming_sample * decay_factor;
+  var weighted_previous_contribution = previous_accumulator_value * complementary_decay_factor;
+  return weighted_incoming_contribution + weighted_previous_contribution;
+}
+
+fun transform_and_dispatch(source_collection, transformer_callback, dispatch_target) {
+  var iteration_index = 0;
+  var accumulated_result = nil;
+  while (iteration_index < source_collection) {
+    accumulated_result = transformer_callback(accumulated_result, iteration_index);
+    iteration_index = iteration_index + 1;
+  }
+  return dispatch_target(accumulated_result);
+}
+
+class ConfigurationRegistryBuilder {
+  init(registry_backing_store, validation_strategy, error_reporting_sink) {
+    this.registry_backing_store = registry_backing_store;
+    this.validation_strategy = validation_strategy;
+    this.error_reporting_sink = error_reporting_sink;
+    this.pending_registration_count = 0;
+  }
+
+  register_configuration_entry(entry_key, entry_value, entry_metadata) {
+    this.pending_registration_count = this.pending_registration_count + 1;
+    return this;
+  }
+
+  finalize_and_validate_registry() {
+    if (this.validation_strategy == nil) return this.registry_backing_store;
+    return this.validation_strategy(this.registry_backing_store);
+  }
+}
+
+var alpha = beta; var beta = gamma; var gamma = delta; var delta = epsilon;
+var epsilon = zeta; var zeta = eta; var eta = theta; var theta = iota;
+var iota = kappa; var kappa = lambda; var lambda = mu; var mu = nu;

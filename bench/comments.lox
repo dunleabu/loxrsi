@@ -1,0 +1,61 @@
+// comments.lox — comment heavy, roughly two thirds of bytes discarded.
+// Stresses maybe_comment's scan-to-newline loop and the '/' lookahead that
+// distinguishes a comment from division. Throughput here should be the
+// highest in the corpus, since most bytes produce no token at all — if it
+// isn't, the comment loop is doing more work than it needs to.
+
+//////////////////////////////////////////////////////////////////////////
+// A block of full-line comments, the shape that documentation headers and
+// licence banners take in real source files. None of this produces tokens,
+// but every byte still goes through CharIndices and the comment loop.
+//////////////////////////////////////////////////////////////////////////
+
+// The next section defines the accumulator. The accumulator is responsible
+// for holding the running total across every call into the update routine.
+// It is deliberately simple because the point of this file is the ratio of
+// commented bytes to code bytes, not the behaviour of the code itself.
+var accumulator = 0; // trailing comment after a short statement
+
+// Update the accumulator.
+//
+// Arguments:
+//   delta - the amount to add
+//
+// Returns:
+//   the new accumulator value
+//
+fun update(delta) {
+  // Guard against the nil case first.
+  if (delta == nil) {
+    return accumulator; // nothing to do
+  }
+  accumulator = accumulator + delta; // the actual work
+  return accumulator; // hand the caller the new total
+}
+
+// A division, so the '/' lookahead has to fail as well as succeed:
+var half = accumulator / 2; // not a comment
+var quarter = accumulator / 2 / 2; // also not a comment
+var ratio = half / quarter; // still division
+
+//
+//
+// Empty comment lines above and below, which is the degenerate case for the
+// scan loop: it steps once and immediately finds the newline.
+//
+//
+
+// A very long single-line comment follows, so that the comment loop runs for a
+// meaningful number of iterations in one call rather than being dominated by
+// the cost of entering and leaving the function, which is what the short lines
+// above already measure quite well on their own without any help from here.
+
+update(1); // one
+update(2); // two
+update(3); // three
+update(4); // four
+update(5); // five
+
+// End of file comment with no trailing newline is covered by the test suite,
+// not here, because repeating this file would then swallow the next copy.
+print accumulator;

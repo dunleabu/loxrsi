@@ -1,0 +1,58 @@
+// strings.lox — string literal heavy.
+// Stresses to_string: the scan-to-closing-quote loop plus one heap allocation
+// and copy per literal. Together with identifiers.lox this is where the
+// Token-owns-a-String cost concentrates.
+//
+// Mixes literal lengths on purpose: very short literals pay allocator overhead
+// per byte copied, long ones pay the copy. Also includes literals containing
+// characters that would otherwise be tokens (// and " adjacent constructs) to
+// confirm the scanner stays inside the quotes.
+
+print "";
+print "a";
+print "ab";
+print "the quick brown fox jumps over the lazy dog";
+print "// this is not a comment, it is inside a string literal";
+print "var x = 10; if (x >= 1) { print x; } // none of this lexes";
+print "!= <= >= == and or nil true false class fun return super this";
+print "1234567890 3.14159 0.0001 999999999999999";
+print "a string with  runs   of    increasing     whitespace";
+print "punctuation: ()[]{},.;:+-*/%&|^~<>?!@#$";
+
+fun banner(title) {
+  print "========================================================";
+  print "  " + title;
+  print "========================================================";
+}
+
+fun report(name, value) {
+  print "field " + name + " has value " + value + " as of the last update";
+}
+
+class MessageCatalogue {
+  init() {
+    this.greeting = "Hello, and welcome to the interpreter test corpus.";
+    this.farewell = "Goodbye, thanks for running the benchmark suite.";
+    this.notFound = "The requested key was not present in the catalogue.";
+    this.tooLong = "This particular message is deliberately quite long so that the scanner spends a meaningful number of iterations inside a single string literal rather than bouncing back out to the dispatch loop after only a handful of characters, which is what the short literals above already measure.";
+  }
+
+  lookup(key) {
+    if (key == "greeting") return this.greeting;
+    if (key == "farewell") return this.farewell;
+    if (key == "notFound") return this.notFound;
+    if (key == "tooLong") return this.tooLong;
+    return "unknown key requested from the message catalogue";
+  }
+}
+
+banner("Section One: Initialisation");
+report("status", "ready");
+report("mode", "benchmark");
+report("description", "a moderately long value to copy out of the source text");
+banner("Section Two: Execution");
+print "step one complete";
+print "step two complete";
+print "step three complete, moving on to the reporting phase now";
+banner("Section Three: Teardown");
+print "all sections finished";

@@ -1,0 +1,73 @@
+// whitespace.lox — sparse code, heavy indentation and blank lines.
+// Stresses the whitespace arm of from_start, which currently costs one full
+// dispatch per whitespace character. Deeply indented blocks and blank-line
+// separated sections are ordinary formatting, so this is not a pathological
+// input — it is what heavily nested real source looks like to the scanner.
+
+class Outer {
+
+        init() {
+
+                this.value = 0;
+
+        }
+
+        method() {
+
+                if (this.value > 0) {
+
+                        while (this.value > 0) {
+
+                                if (this.value > 100) {
+
+                                        this.value = this.value - 100;
+
+                                } else {
+
+                                        this.value = this.value - 1;
+
+                                }
+
+                        }
+
+                }
+
+                return this.value;
+
+        }
+
+}
+
+
+fun deeply(a) {
+
+        if (a) {
+
+                if (a) {
+
+                        if (a) {
+
+                                if (a) {
+
+                                        return a;
+
+                                }
+
+                        }
+
+                }
+
+        }
+
+        return nil;
+
+}
+
+
+var instance = Outer();
+
+
+print instance.method();
+
+
+print deeply(true);

@@ -1,0 +1,91 @@
+// mixed.lox — the default benchmark: a representative Lox program.
+// Roughly the token mix of ordinary source, with no category dominating.
+// Use this one when comparing lexer variants; the others isolate paths.
+
+class Vector {
+  init(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  plus(other) {
+    return Vector(this.x + other.x, this.y + other.y);
+  }
+
+  scale(factor) {
+    return Vector(this.x * factor, this.y * factor);
+  }
+
+  lengthSquared() {
+    return this.x * this.x + this.y * this.y;
+  }
+
+  describe() {
+    print "vector at " + this.x + ", " + this.y;
+  }
+}
+
+class Particle < Vector {
+  init(x, y, mass) {
+    super.init(x, y);
+    this.mass = mass;
+    this.velocity = Vector(0, 0);
+    this.alive = true;
+  }
+
+  step(dt) {
+    if (!this.alive) return nil;
+    this.velocity = this.velocity.plus(Vector(0, -9.81 * dt));
+    this.x = this.x + this.velocity.x * dt;
+    this.y = this.y + this.velocity.y * dt;
+    if (this.y <= 0 and this.velocity.y < 0) {
+      this.alive = false;
+    }
+    return this;
+  }
+}
+
+fun simulate(count, steps) {
+  var particles = nil;
+  var index = 0;
+  // Seed the system with a spread of starting positions.
+  while (index < count) {
+    var p = Particle(index * 1.5, 100.0 + index, 1.0);
+    p.velocity = Vector(index * 0.25, 0);
+    index = index + 1;
+  }
+
+  var tick = 0;
+  for (var i = 0; i < steps; i = i + 1) {
+    tick = tick + 1;
+    if (tick > 1000) break;
+  }
+  return tick;
+}
+
+fun classify(value) {
+  if (value == nil) {
+    return "nothing";
+  } else if (value < 0) {
+    return "negative";
+  } else if (value == 0) {
+    return "zero";
+  } else if (value <= 10) {
+    return "small";
+  } else {
+    return "large";
+  }
+}
+
+var total = 0;
+var samples = 64;
+for (var i = 0; i < samples; i = i + 1) {
+  var scaled = i * 3.75 - 12.5;
+  if (scaled >= 0 and scaled != 100 or i == 0) {
+    total = total + scaled / 2;
+  }
+  print classify(scaled);
+}
+
+print "simulated " + simulate(32, 240) + " ticks";
+print "total is " + total;
