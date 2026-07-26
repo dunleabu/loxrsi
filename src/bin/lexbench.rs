@@ -129,8 +129,7 @@ struct Case {
 
 impl Case {
     fn load(path: &Path, target_bytes: usize) -> Result<Case, String> {
-        let text =
-            fs::read_to_string(path).map_err(|e| format!("{}: {}", path.display(), e))?;
+        let text = fs::read_to_string(path).map_err(|e| format!("{}: {}", path.display(), e))?;
         if text.is_empty() {
             return Err(format!("{}: empty file", path.display()));
         }
@@ -149,9 +148,10 @@ impl Case {
             }
         }
         Ok(Case {
-            name: path
-                .file_name()
-                .map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into()),
+            name: path.file_name().map_or_else(
+                || path.display().to_string(),
+                |n| n.to_string_lossy().into(),
+            ),
             original_bytes: text.len(),
             copies,
             source,
@@ -260,7 +260,10 @@ fn main() {
             case.name, case.original_bytes, case.copies, tokens, best, mtoks, spread
         );
         if errors > 0 {
-            println!("  ^ lexed with {} errors — timing still valid, but this", errors);
+            println!(
+                "  ^ lexed with {} errors — timing still valid, but this",
+                errors
+            );
             println!("    file exercises the error path, not the token path");
         }
     }

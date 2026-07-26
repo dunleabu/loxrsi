@@ -217,6 +217,13 @@ fn step_digits(text: &mut TextInput) -> usize {
     counter
 }
 
+fn try_number_token(s: &str) -> Token {
+    match s.parse::<f64>() {
+        Ok(n) => Token::Number(n),
+        Err(e) => Token::Error(format!("failed number conversion: {}", e)),
+    }
+}
+
 fn to_number(text: &mut TextInput) -> StepOut {
     text.mark();
     text.step();
@@ -226,20 +233,20 @@ fn to_number(text: &mut TextInput) -> StepOut {
     {
         text.step();
         if step_digits(text) == 0 {
-            let number = text
-                .slice()
-                .strip_suffix('.')
-                .unwrap()
-                .parse::<f64>()
-                .expect("failed number conversion!");
-            return (State::AddDot, Some(text.add_context(Token::Number(number))));
+            let slice = text.slice();
+            let token = try_number_token(slice.strip_suffix('.').unwrap_or(slice));
+            let state = if let Token::Number(_) = token {
+                State::AddDot
+            } else {
+                State::Start
+            };
+            return (state, Some(text.add_context(token)));
         }
     }
-    let number = text
-        .slice()
-        .parse::<f64>()
-        .expect("failed number conversion");
-    (State::Start, Some(text.add_context(Token::Number(number))))
+    (
+        State::Start,
+        Some(text.add_context(try_number_token(text.slice()))),
+    )
 }
 
 fn to_string(text: &mut TextInput) -> StepOut {
