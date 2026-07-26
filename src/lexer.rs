@@ -62,6 +62,7 @@ impl<'a> TextInput<'_> {
     }
 
     fn slice(&self) -> &str {
+        debug_assert!(self.left <= self.right);
         &self.data[self.left..self.right]
     }
 
@@ -235,7 +236,7 @@ fn to_number(text: &mut TextInput) -> StepOut {
         if step_digits(text) == 0 {
             let slice = text.slice();
             let token = try_number_token(slice.strip_suffix('.').unwrap_or(slice));
-            let state = if let Token::Number(_) = token {
+            let state = if matches!(token, Token::Number(_)) {
                 State::AddDot
             } else {
                 State::Start
